@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model book_ratings {
+  id      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  book_id String?  @db.Uuid
+  user_id String?  @db.Uuid
+  rating  Decimal? @db.Decimal(3, 1)
+  comment String?  @db.VarChar(500)
+  books   books?   @relation(fields: [book_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users   users?   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model books {
+  id                                                             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                                                          String               @db.VarChar(200)
+  author                                                         String               @db.VarChar(100)
+  user_id                                                        String?              @db.Uuid
+  cover_link                                                     String?              @db.VarChar(100)
+  publisher                                                      String?              @db.VarChar(100)
+  genre                                                          String?              @db.VarChar(100)
+  pages                                                          Int?
+  rating                                                         Decimal?             @db.Decimal(3, 1)
+  availability                                                   Boolean?             @default(true)
+  book_ratings                                                   book_ratings[]
+  users                                                          users?               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  exchanges_requests_exchanges_requests_receiver_book_idTobooks  exchanges_requests[] @relation("exchanges_requests_receiver_book_idTobooks")
+  exchanges_requests_exchanges_requests_requester_book_idTobooks exchanges_requests[] @relation("exchanges_requests_requester_book_idTobooks")
+}
+
+model desired_books {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String? @db.Uuid
+  title      String  @db.VarChar(200)
+  author     String  @db.VarChar(100)
+  cover_link String? @db.VarChar(100)
+  users      users?  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model exchange_loans {
+  id                  String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  exchange_request_id String?             @db.Uuid
+  is_loan             Boolean?            @default(true)
+  due_date            DateTime?           @db.Date
+  created_at          DateTime?           @default(now()) @db.Timestamp(6)
+  exchanges_requests  exchanges_requests? @relation(fields: [exchange_request_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model exchanges_requests {
+  id                                                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  requester_user_id                                 String?             @db.Uuid
+  requester_book_id                                 String?             @db.Uuid
+  receiver_user_id                                  String?             @db.Uuid
+  receiver_book_id                                  String?             @db.Uuid
+  status                                            String?             @default("pending") @db.VarChar(10)
+  created_at                                        DateTime?           @default(now()) @db.Timestamp(6)
+  exchange_loans                                    exchange_loans[]
+  books_exchanges_requests_receiver_book_idTobooks  books?              @relation("exchanges_requests_receiver_book_idTobooks", fields: [receiver_book_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_exchanges_requests_receiver_user_idTousers  users?              @relation("exchanges_requests_receiver_user_idTousers", fields: [receiver_user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  books_exchanges_requests_requester_book_idTobooks books?              @relation("exchanges_requests_requester_book_idTobooks", fields: [requester_book_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_exchanges_requests_requester_user_idTousers users?              @relation("exchanges_requests_requester_user_idTousers", fields: [requester_user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_reputations                                 users_reputations[]
+}
+
+model permissions {
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String              @unique @db.VarChar(100)
+  description       String              @db.VarChar(100)
+  roles_permissions roles_permissions[]
+  users_permissions users_permissions[]
+}
+
+model roles {
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String              @unique @db.VarChar(100)
+  description       String              @db.VarChar(100)
+  roles_permissions roles_permissions[]
+  users_roles       users_roles[]
+}
+
+model roles_permissions {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role_id       String?      @db.Uuid
+  permission_id String?      @db.Uuid
+  permissions   permissions? @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  roles         roles?       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model users {
+  id                                                             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                                                           String               @db.VarChar(100)
+  email                                                          String               @unique @db.VarChar(100)
+  password                                                       String               @db.VarChar(100)
+  book_ratings                                                   book_ratings[]
+  books                                                          books[]
+  desired_books                                                  desired_books[]
+  exchanges_requests_exchanges_requests_receiver_user_idTousers  exchanges_requests[] @relation("exchanges_requests_receiver_user_idTousers")
+  exchanges_requests_exchanges_requests_requester_user_idTousers exchanges_requests[] @relation("exchanges_requests_requester_user_idTousers")
+  users_permissions                                              users_permissions[]
+  users_reputations_users_reputations_from_user_idTousers        users_reputations[]  @relation("users_reputations_from_user_idTousers")
+  users_reputations_users_reputations_to_user_idTousers          users_reputations[]  @relation("users_reputations_to_user_idTousers")
+  users_roles                                                    users_roles[]
+}
+
+model users_permissions {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String?      @db.Uuid
+  permission_id String?      @db.Uuid
+  permissions   permissions? @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users         users?       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users_reputations {
+  id                                          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  exchange_id                                 String?             @db.Uuid
+  from_user_id                                String?             @db.Uuid
+  to_user_id                                  String?             @db.Uuid
+  rating                                      Decimal?            @db.Decimal(3, 1)
+  comment                                     String?             @db.VarChar(500)
+  exchanges_requests                          exchanges_requests? @relation(fields: [exchange_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_users_reputations_from_user_idTousers users?              @relation("users_reputations_from_user_idTousers", fields: [from_user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_users_reputations_to_user_idTousers   users?              @relation("users_reputations_to_user_idTousers", fields: [to_user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model users_roles {
+  id      String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id String? @db.Uuid
+  role_id String? @db.Uuid
+  roles   roles?  @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users   users?  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
